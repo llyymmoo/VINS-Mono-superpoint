@@ -17,6 +17,7 @@ int COL;
 int FOCAL_LENGTH;
 int FISHEYE;
 bool PUB_THIS_FRAME;
+std::string SUPERPOINT_PATH;
 
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
@@ -67,6 +68,8 @@ void readParameters(ros::NodeHandle &n)
 
     if (FREQ == 0)
         FREQ = 100;
+
+    fsSettings["superpoint_path"] >> SUPERPOINT_PATH;
 
     fsSettings.release();
 

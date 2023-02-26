@@ -16,6 +16,9 @@
 #include "parameters.h"
 #include "tic_toc.h"
 
+#include "SuperPoint.h"
+#include "Utility_Apps.h"
+
 using namespace std;
 using namespace camodocal;
 using namespace Eigen;
@@ -62,4 +65,7 @@ class FeatureTracker
     double prev_time;
 
     static int n_id;
+
+    std::unique_ptr<Ort::SuperPoint> superpoint_extractor;
+    Ort::SuperPoint osh;
 };

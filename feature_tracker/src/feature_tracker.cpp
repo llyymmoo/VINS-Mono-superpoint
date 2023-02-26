@@ -29,8 +29,22 @@ void reduceVector(vector<int> &v, vector<uchar> status)
 }
 
 
-FeatureTracker::FeatureTracker()
+FeatureTracker::FeatureTracker() : osh(SUPERPOINT_PATH,
+        0,
+        std::vector<std::vector<int64_t>> {{1, Ort::SuperPoint::IMG_CHANNEL, Ort::SuperPoint::IMG_H, Ort::SuperPoint::IMG_W}})
 {
+    std::cout << "feature tracker init" << std::endl;
+    // superpoint_extractor = std::make_unique<Ort::SuperPoint>(
+    //     SUPERPOINT_PATH,
+    //     0,
+    //     std::vector<std::vector<int64_t>> {{1, Ort::SuperPoint::IMG_CHANNEL, Ort::SuperPoint::IMG_H, Ort::SuperPoint::IMG_W}});
+    
+    // Ort::SuperPoint temp(SUPERPOINT_PATH,
+    //                             0,
+    //                             std::vector<std::vector<int64_t>> {
+    //                                        {1, Ort::SuperPoint::IMG_CHANNEL, Ort::SuperPoint::IMG_H, Ort::SuperPoint::IMG_W}});
+    // osh = temp;
+    // std::cout << "feat tracker init end" << std::endl;
 }
 
 void FeatureTracker::setMask()
@@ -146,7 +160,15 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
                 cout << "mask type wrong " << endl;
             if (mask.size() != forw_img.size())
                 cout << "wrong size " << endl;
-            cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
+
+            // use opencv to extract features
+            // cv::goodFeaturesToTrack(forw_img, n_pts, MAX_CNT - forw_pts.size(), 0.01, MIN_DIST, mask);
+
+            // use superpoint to extract features
+            std::vector<float> dst(Ort::SuperPoint::IMG_CHANNEL * Ort::SuperPoint::IMG_H * Ort::SuperPoint::IMG_W);
+            KeyPointAndDesc kps_desc = osh.processOneFrame(forw_img, MAX_CNT - forw_pts.size(), dst.data());
+            for (auto& kp : kps_desc.first)
+                n_pts.push_back(kp.pt);
         }
         else
             n_pts.clear();

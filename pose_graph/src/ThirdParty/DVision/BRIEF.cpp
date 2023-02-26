@@ -14,6 +14,7 @@
 #include "../DUtils/DUtils.h"
 #include <boost/dynamic_bitset.hpp>
 #include <vector>
+#include <opencv2/highgui/highgui_c.h>
 
 using namespace std;
 using namespace DVision;

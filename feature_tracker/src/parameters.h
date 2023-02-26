@@ -22,5 +22,6 @@ extern int STEREO_TRACK;
 extern int EQUALIZE;
 extern int FISHEYE;
 extern bool PUB_THIS_FRAME;
+extern std::string SUPERPOINT_PATH;
 
 void readParameters(ros::NodeHandle &n);

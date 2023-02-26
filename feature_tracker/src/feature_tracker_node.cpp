@@ -18,7 +18,8 @@ queue<sensor_msgs::ImageConstPtr> img_buf;
 ros::Publisher pub_img,pub_match;
 ros::Publisher pub_restart;
 
-FeatureTracker trackerData[NUM_OF_CAM];
+std::unique_ptr<FeatureTracker> trackerData[NUM_OF_CAM];
+// FeatureTracker trackerData[NUM_OF_CAM];
 double first_image_time;
 int pub_count = 1;
 bool first_image_flag = true;
@@ -83,16 +84,16 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     {
         ROS_DEBUG("processing camera %d", i);
         if (i != 1 || !STEREO_TRACK)
-            trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), img_msg->header.stamp.toSec());
+            trackerData[i]->readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), img_msg->header.stamp.toSec());
         else
         {
             if (EQUALIZE)
             {
                 cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
-                clahe->apply(ptr->image.rowRange(ROW * i, ROW * (i + 1)), trackerData[i].cur_img);
+                clahe->apply(ptr->image.rowRange(ROW * i, ROW * (i + 1)), trackerData[i]->cur_img);
             }
             else
-                trackerData[i].cur_img = ptr->image.rowRange(ROW * i, ROW * (i + 1));
+                trackerData[i]->cur_img = ptr->image.rowRange(ROW * i, ROW * (i + 1));
         }
 
 #if SHOW_UNDISTORTION
@@ -105,7 +106,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         bool completed = false;
         for (int j = 0; j < NUM_OF_CAM; j++)
             if (j != 1 || !STEREO_TRACK)
-                completed |= trackerData[j].updateID(i);
+                completed |= trackerData[j]->updateID(i);
         if (!completed)
             break;
     }
@@ -126,13 +127,13 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         vector<set<int>> hash_ids(NUM_OF_CAM);
         for (int i = 0; i < NUM_OF_CAM; i++)
         {
-            auto &un_pts = trackerData[i].cur_un_pts;
-            auto &cur_pts = trackerData[i].cur_pts;
-            auto &ids = trackerData[i].ids;
-            auto &pts_velocity = trackerData[i].pts_velocity;
+            auto &un_pts = trackerData[i]->cur_un_pts;
+            auto &cur_pts = trackerData[i]->cur_pts;
+            auto &ids = trackerData[i]->ids;
+            auto &pts_velocity = trackerData[i]->pts_velocity;
             for (unsigned int j = 0; j < ids.size(); j++)
             {
-                if (trackerData[i].track_cnt[j] > 1)
+                if (trackerData[i]->track_cnt[j] > 1)
                 {
                     int p_id = ids[j];
                     hash_ids[i].insert(p_id);
@@ -175,10 +176,10 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
                 cv::Mat tmp_img = stereo_img.rowRange(i * ROW, (i + 1) * ROW);
                 cv::cvtColor(show_img, tmp_img, CV_GRAY2RGB);
 
-                for (unsigned int j = 0; j < trackerData[i].cur_pts.size(); j++)
+                for (unsigned int j = 0; j < trackerData[i]->cur_pts.size(); j++)
                 {
-                    double len = std::min(1.0, 1.0 * trackerData[i].track_cnt[j] / WINDOW_SIZE);
-                    cv::circle(tmp_img, trackerData[i].cur_pts[j], 2, cv::Scalar(255 * (1 - len), 0, 255 * len), 2);
+                    double len = std::min(1.0, 1.0 * trackerData[i]->track_cnt[j] / WINDOW_SIZE);
+                    cv::circle(tmp_img, trackerData[i]->cur_pts[j], 2, cv::Scalar(255 * (1 - len), 0, 255 * len), 2);
                     //draw speed line
                     /*
                     Vector2d tmp_cur_un_pts (trackerData[i].cur_un_pts[j].x, trackerData[i].cur_un_pts[j].y);
@@ -210,15 +211,18 @@ int main(int argc, char **argv)
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
     readParameters(n);
 
+    for (int i = 0; i < NUM_OF_CAM; ++i)
+        trackerData[i] = std::make_unique<FeatureTracker>();
+
     for (int i = 0; i < NUM_OF_CAM; i++)
-        trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
+        trackerData[i]->readIntrinsicParameter(CAM_NAMES[i]);
 
     if(FISHEYE)
     {
         for (int i = 0; i < NUM_OF_CAM; i++)
         {
-            trackerData[i].fisheye_mask = cv::imread(FISHEYE_MASK, 0);
-            if(!trackerData[i].fisheye_mask.data)
+            trackerData[i]->fisheye_mask = cv::imread(FISHEYE_MASK, 0);
+            if(!trackerData[i]->fisheye_mask.data)
             {
                 ROS_INFO("load mask fail");
                 ROS_BREAK();
